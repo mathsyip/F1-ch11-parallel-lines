@@ -183,18 +183,20 @@
             <div className="absolute w-[300%] h-1.5 md:h-2.5 bg-[#8B4513] rounded-full z-0 shadow-sm border-y border-[#5C2E0B]"></div>
             <div className="absolute w-3 h-5 md:w-4 md:h-7 bg-red-600 border-2 border-white rounded-sm z-20 shadow-md"></div>
 
+            {/* 紅方隊伍 (左側，向左拉 -> 需要鏡像反轉 isRight={true}) */}
             <div className="absolute right-1/2 mr-3 md:mr-6 flex gap-1 md:gap-3 items-center z-10">
               {[1, 2, 3, 4].map(i => (
                 <div key={`red-${i}`} className="anim-pull-l" style={{ animationDelay: `${i * 0.12}s` }}>
-                  <PullingPerson color="#ef4444" isRight={false} />
+                  <PullingPerson color="#ef4444" isRight={true} />
                 </div>
               ))}
             </div>
 
+            {/* 藍方隊伍 (右側，向右拉 -> 保持原本朝向 isRight={false}) */}
             <div className="absolute left-1/2 ml-3 md:ml-6 flex gap-1 md:gap-3 items-center z-10">
               {[1, 2, 3, 4].map(i => (
                 <div key={`blue-${i}`} className="anim-pull-r" style={{ animationDelay: `${i * 0.12}s` }}>
-                  <PullingPerson color="#3b82f6" isRight={true} />
+                  <PullingPerson color="#3b82f6" isRight={false} />
                 </div>
               ))}
             </div>
@@ -740,7 +742,7 @@
             {feedback && status !== 'explanation' && (
               <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-20 rounded-lg pointer-events-none">
                 {gameState === 'single' ? (
-                   <Icon name="CheckCircle2" className="w-24 h-24 text-green-500" />
+                   <Icon name="CheckCircle2" className="w-24 h-24 text-green-500 animate-in zoom-in" />
                 ) : (
                    <div className={`text-4xl font-black p-6 rounded-2xl shadow-xl bg-white ${feedback === 'p1-correct' ? 'text-red-500 border-4 border-red-200' : 'text-blue-500 border-4 border-blue-200'}`}>
                      {feedback === 'p1-correct' ? '⬅ 紅方得分' : '藍方得分 ➡'}
@@ -774,7 +776,7 @@
                       <button
                         key={`p1-${i}`}
                         onClick={() => handleAnswer(1, opt.value)}
-                        className="bg-white border-2 border-red-100 text-red-700 font-bold text-[9px] md:text-[13px] py-1 px-0.5 rounded-lg active:bg-red-500 active:text-white whitespace-pre-line leading-[1.1] flex items-center justify-center text-center h-full transition-colors shadow-sm"
+                        className="bg-white border-2 border-red-100 text-red-700 font-bold text-[9px] md:text-xs py-1 px-0.5 rounded-lg active:bg-red-500 active:text-white whitespace-pre-line leading-[1.1] flex items-center justify-center text-center h-full transition-colors shadow-sm"
                       >
                         {opt.label}
                       </button>
@@ -788,7 +790,7 @@
                       <button
                         key={`p2-${i}`}
                         onClick={() => handleAnswer(2, opt.value)}
-                        className="bg-white border-2 border-blue-100 text-blue-700 font-bold text-[9px] md:text-[13px] py-1 px-0.5 rounded-lg active:bg-blue-500 active:text-white whitespace-pre-line leading-[1.1] flex items-center justify-center text-center h-full transition-colors shadow-sm"
+                        className="bg-white border-2 border-blue-100 text-blue-700 font-bold text-[9px] md:text-xs py-1 px-0.5 rounded-lg active:bg-blue-500 active:text-white whitespace-pre-line leading-[1.1] flex items-center justify-center text-center h-full transition-colors shadow-sm"
                       >
                         {opt.label}
                       </button>
