@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>平行線上的角 - 教學平台</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel for in-browser JSX compilation -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      background-color: #0f172a; /* bg-slate-900 */
+      margin: 0;
+      padding: 0;
+      touch-action: manipulation; /* 防止觸控連按放大 */
+    }
+    
+    /* 拔河動畫 Keyframes */
+    @keyframes pull-l {
+      0%, 100% { transform: rotate(-5deg); }
+      50% { transform: rotate(-15deg) translateX(-2px) translateY(1px); }
+    }
+    @keyframes pull-r {
+      0%, 100% { transform: rotate(5deg); }
+      50% { transform: rotate(15deg) translateX(2px) translateY(1px); }
+    }
+    .anim-pull-l { animation: pull-l 0.6s ease-in-out infinite; transform-origin: bottom center; }
+    .anim-pull-r { animation: pull-r 0.6s ease-in-out infinite; transform-origin: bottom center; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- Inline Icons (Replacing lucide-react) ---
+    const Icon = ({ name, className = "w-6 h-6" }) => {
+      const icons = {
+        Compass: <><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></>,
+        Swords: <><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" y1="14" x2="9" y2="18"/><line x1="7" y1="17" x2="4" y2="20"/><line x1="3" y1="19" x2="5" y2="21"/></>,
+        User: <><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
+        Users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>,
+        CheckCircle2: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>,
+        XCircle: <><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></>,
+        Trophy: <><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 1.1-.9 2-2 2H6"/><path d="M14 14.66V17c0 1.1.9 2 2 2h2"/><path d="M18 4c0 3-2 5.5-5 5.5h-2c-3 0-5-2.5-5-5.5V2h12v2z"/></>,
+        RotateCcw: <><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></>,
+        Timer: <><line x1="10" y1="2" x2="14" y2="2"/><line x1="12" y1="14" x2="15" y2="11"/><circle cx="12" cy="14" r="8"/></>,
+        MousePointerClick: <><path d="m14 4.1 2.86 7.15L20 14l-3.14 2.75L14 23.9l-2.86-7.15L8 14l3.14-2.75z"/><path d="m18 18 3 3"/></>,
+        Play: <><polygon points="5 3 19 12 5 21 5 3"/></>,
+        Repeat: <><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></>
+      };
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          {icons[name]}
+        </svg>
+      );
+    };
+
+    // --- Data Models & Math Utilities ---
+
+    const THEOREMS = {
+      corr: { 
+        name: "同位角", 
+        dseReason: "同位角, AB // CD\n(corr. ∠s, AB // CD)",
+        engReason: "corr. ∠s, AB // CD",
+        pairs: [[0, 4], [1, 5], [2, 6], [3, 7]]
+      },
+      alt: { 
+        name: "錯角 (內錯角)", 
+        dseReason: "錯角, AB // CD\n(alt. ∠s, AB // CD)",
+        engReason: "alt. ∠s, AB // CD",
+        pairs: [[2, 4], [3, 5]]
+      },
+      int: { 
+        name: "同旁內角", 
+        dseReason: "同旁內角, AB // CD\n(int. ∠s, AB // CD)",
+        engReason: "int. ∠s, AB // CD",
+        pairs: [[2, 5], [3, 4]]
+      }
+    };
+
+    const COLOR_A = '#3b82f6'; // Blue
+    const COLOR_B = '#ef4444'; // Red
+
+    const getAnglesInfo = (theta) => {
+      const tanTheta = Math.tan((theta * Math.PI) / 180);
+      const p1x = 200 + (80 - 140) / tanTheta;
+      const p2x = 200 + (200 - 140) / tanTheta;
+
+      return [
+        { id: 0, start: 180 + theta, end: 360, val: 180 - theta, cx: p1x, cy: 80 },
+        { id: 1, start: 180, end: 180 + theta, val: theta, cx: p1x, cy: 80 },
+        { id: 2, start: theta, end: 180, val: 180 - theta, cx: p1x, cy: 80 },
+        { id: 3, start: 0, end: theta, val: theta, cx: p1x, cy: 80 },
+        { id: 4, start: 180 + theta, end: 360, val: 180 - theta, cx: p2x, cy: 200 },
+        { id: 5, start: 180, end: 180 + theta, val: theta, cx: p2x, cy: 200 },
+        { id: 6, start: theta, end: 180, val: 180 - theta, cx: p2x, cy: 200 },
+        { id: 7, start: 0, end: theta, val: theta, cx: p2x, cy: 200 },
+      ];
+    };
+
+    const generateQuestion = () => {
+      const type = Math.random() > 0.5 ? 'calc' : 'identify';
+      const theta = Math.floor(Math.random() * 21 + 6) * 5; 
+      const anglesInfo = getAnglesInfo(theta);
+
+      if (type === 'calc') {
+        const givenId = Math.floor(Math.random() * 8);
+        let targetId;
+        do { targetId = Math.floor(Math.random() * 8); } while (targetId === givenId);
+        
+        const targetVal = anglesInfo[targetId].val;
+        const options = new Set([targetVal, 180 - targetVal]);
+        while (options.size < 4) {
+          let randDistract = (Math.floor(Math.random() * 15) + 4) * 10;
+          if (randDistract !== targetVal && randDistract !== 180 - targetVal) {
+            options.add(randDistract);
+          }
+        }
+        
+        return {
+          type: 'calc',
+          theta,
+          givenId,
+          givenVal: anglesInfo[givenId].val,
+          targetId,
+          targetVal,
+          options: Array.from(options).sort((a, b) => a - b).map(v => ({ label: `${v}°`, value: v }))
+        };
+      } else {
+        const relKeys = Object.keys(THEOREMS);
+        const actualRel = relKeys[Math.floor(Math.random() * relKeys.length)];
+        const pairList = THEOREMS[actualRel].pairs;
+        const pair = pairList[Math.floor(Math.random() * pairList.length)];
+        
+        return {
+          type: 'identify',
+          theta,
+          highlightedIds: pair,
+          targetVal: actualRel,
+          options: [
+            { label: THEOREMS.corr.engReason, value: 'corr' },
+            { label: THEOREMS.alt.engReason, value: 'alt' },
+            { label: THEOREMS.int.engReason, value: 'int' },
+            { label: "vert. opp. ∠s", value: 'distractor' }
+          ]
+        };
+      }
+    };
+
+    // --- Animated SVG Stick Figure (Pulling Pose) ---
+    const PullingPerson = ({ color, isRight }) => (
+      <svg viewBox="0 0 32 32" className={`w-6 h-8 md:w-12 md:h-16 drop-shadow-md ${isRight ? '-scale-x-100' : ''}`}>
+        <circle cx="21" cy="6" r="4.5" fill={color} />
+        <line x1="21" y1="10" x2="25" y2="22" stroke={color} strokeWidth="4" strokeLinecap="round" />
+        <line x1="22" y1="14" x2="7" y2="16" stroke={color} strokeWidth="3" strokeLinecap="round" />
+        <line x1="25" y1="22" x2="14" y2="31" stroke={color} strokeWidth="4" strokeLinecap="round" />
+        <line x1="25" y1="22" x2="29" y2="31" stroke={color} strokeWidth="4" strokeLinecap="round" />
+      </svg>
+    );
+
+    // --- Advanced Tug of War Component ---
+    const TugOfWarAnimation = ({ score, maxPull }) => {
+      const ropePosition = 50 + (score / maxPull) * 50;
+
+      return (
+        <div className="relative w-full h-16 md:h-24 bg-white rounded-2xl overflow-hidden border-4 border-slate-300 shadow-inner flex items-center">
+          <div className="absolute top-0 bottom-0 left-1/2 w-2 bg-yellow-300/80 -translate-x-1/2 z-0 border-x border-yellow-400"></div>
+
+          <div
+            className="absolute w-full h-full flex items-center justify-center transition-transform duration-500 ease-out z-10"
+            style={{ transform: `translateX(calc(${ropePosition}% - 50%))` }}
+          >
+            <div className="absolute w-[300%] h-2 md:h-4 bg-[#8B4513] rounded-full z-0 shadow-md border-y-2 border-[#5C2E0B]"></div>
+            <div className="absolute w-4 h-8 md:w-6 md:h-12 bg-red-600 border-2 border-white rounded-md z-20 shadow-lg"></div>
+
+            {/* 紅方隊伍 (左側，向左拉 -> 需要鏡像反轉 isRight={true}) */}
+            <div className="absolute right-1/2 mr-4 md:mr-8 flex gap-2 md:gap-4 items-center z-10">
+              {[1, 2, 3, 4].map(i => (
+                <div key={`red-${i}`} className="anim-pull-l" style={{ animationDelay: `${i * 0.12}s` }}>
+                  <PullingPerson color="#ef4444" isRight={true} />
+                </div>
+              ))}
+            </div>
+
+            {/* 藍方隊伍 (右側，向右拉 -> 保持原本朝向 isRight={false}) */}
+            <div className="absolute left-1/2 ml-4 md:ml-8 flex gap-2 md:gap-4 items-center z-10">
+              {[1, 2, 3, 4].map(i => (
+                <div key={`blue-${i}`} className="anim-pull-r" style={{ animationDelay: `${i * 0.12}s` }}>
+                  <PullingPerson color="#3b82f6" isRight={false} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // --- Geometry Component ---
+    const GeometrySVG = ({ theta, highlights = [], givenAngles = {}, targetId = null, interactive = false, onAngleClick }) => {
+      const anglesInfo = getAnglesInfo(theta);
+      const tanTheta = Math.tan((theta * Math.PI) / 180);
+      
+      const yStart = 0;
+      const yEnd = 280;
+      const lineStartX = 200 + (yStart - 140) / tanTheta;
+      const lineEndX = 200 + (yEnd - 140) / tanTheta;
+
+      const p1x = 200 + (80 - 140) / tanTheta;
+      const p2x = 200 + (200 - 140) / tanTheta;
+
+      const points = [
+        { id: 'A', x: 60, y: 80, dx: 0, dy: -15 },
+        { id: 'B', x: 340, y: 80, dx: 0, dy: -15 },
+        { id: 'C', x: 60, y: 200, dx: 0, dy: -15 },
+        { id: 'D', x: 340, y: 200, dx: 0, dy: -15 },
+        { id: 'E', x: 200 + (30 - 140) / tanTheta, y: 30, dx: 15, dy: -10 },
+        { id: 'F', x: 200 + (250 - 140) / tanTheta, y: 250, dx: 18, dy: 15 },
+        { id: 'G', x: p1x, y: 80, dx: -22, dy: -18 },
+        { id: 'H', x: p2x, y: 200, dx: -22, dy: -18 },
+      ];
+
+      const getColorByValue = (val) => {
+        return val === theta ? COLOR_A : COLOR_B;
+      };
+
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden rounded-xl md:rounded-3xl border-4 border-slate-200 bg-slate-50 relative shadow-sm">
+          <svg 
+            viewBox="10 0 380 280" 
+            preserveAspectRatio="xMidYMid meet"
+            className="w-full h-full max-h-[85vh] object-contain drop-shadow-md p-1 md:p-2"
+          >
+            <line x1="-50" y1="80" x2="450" y2="80" stroke="#334155" strokeWidth="5" />
+            <line x1="-50" y1="200" x2="450" y2="200" stroke="#334155" strokeWidth="5" />
+            
+            <polygon points="75,68 95,80 75,92" fill="#334155" />
+            <polygon points="75,188 95,200 75,212" fill="#334155" />
+
+            <line x1={lineStartX} y1={yStart} x2={lineEndX} y2={yEnd} stroke="#0ea5e9" strokeWidth="5" />
+
+            {points.map((p) => (
+              <g key={p.id}>
+                <circle cx={p.x} cy={p.y} r="4.5" fill="#0f172a" />
+                <text x={p.x + p.dx} y={p.y + p.dy} fontSize="20" fontWeight="900" fill="#1e293b" textAnchor="middle">
+                  {p.id}
+                </text>
+              </g>
+            ))}
+
+            {anglesInfo.map((a) => {
+              const isHighlight = highlights.includes(a.id);
+              const assignedColor = getColorByValue(a.val);
+              
+              const r = 40; 
+              const sRad = (a.start * Math.PI) / 180;
+              const eRad = (a.end * Math.PI) / 180;
+              const x1 = a.cx + r * Math.cos(sRad);
+              const y1 = a.cy + r * Math.sin(sRad);
+              const x2 = a.cx + r * Math.cos(eRad);
+              const y2 = a.cy + r * Math.sin(eRad);
+              const pathData = `M ${a.cx} ${a.cy} L ${x1} ${y1} A ${r} ${r} 0 ${a.end - a.start > 180 ? 1 : 0} 1 ${x2} ${y2} Z`;
+
+              const midRad = ((a.start + a.end) / 2 * Math.PI) / 180;
+              const labelX = a.cx + (r + 22) * Math.cos(midRad);
+              const labelY = a.cy + (r + 22) * Math.sin(midRad);
+
+              const isGiven = givenAngles[a.id] !== undefined;
+              const isTarget = targetId === a.id;
+
+              let fillColor = "transparent";
+              let strokeColor = "#64748b";
+              let strokeWidth = 2;
+              let opacity = 0;
+
+              if (isHighlight) { 
+                fillColor = assignedColor; 
+                strokeColor = assignedColor;
+                strokeWidth = 3; 
+                opacity = 0.5; 
+              } else if (isTarget) { 
+                fillColor = "#f59e0b"; 
+                strokeColor = "#d97706";
+                strokeWidth = 3; 
+                opacity = 0.5; 
+              } else if (isGiven) { 
+                fillColor = "#10b981"; 
+                strokeColor = "#059669";
+                strokeWidth = 3; 
+                opacity = 0.5; 
+              }
+
+              return (
+                <g 
+                  key={a.id} 
+                  onClick={() => interactive && onAngleClick && onAngleClick(a.id)}
+                  className={interactive ? "cursor-pointer hover:opacity-75 transition-opacity" : ""}
+                >
+                  <path d={`M ${a.cx} ${a.cy} L ${a.cx + (r+35) * Math.cos(sRad)} ${a.cy + (r+35) * Math.sin(sRad)} A ${r+35} ${r+35} 0 0 1 ${a.cx + (r+35) * Math.cos(eRad)} ${a.cy + (r+35) * Math.sin(eRad)} Z`} fill="transparent" />
+                  
+                  <path d={pathData} fill={fillColor} stroke="none" opacity={opacity} />
+                  <path d={pathData} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} opacity={isHighlight ? 1 : 0.4} />
+                  
+                  {isGiven && (
+                    <text x={labelX} y={labelY + 8} textAnchor="middle" fontSize="24" fontWeight="black" fill="#0f172a">
+                      {givenAngles[a.id]}°
+                    </text>
+                  )}
+                  {isTarget && (
+                    <text x={labelX} y={labelY + 12} textAnchor="middle" fontSize="42" fontWeight="black" fill="#dc2626">
+                      ?
+                    </text>
+                  )}
+                  {interactive && isHighlight && !isGiven && !isTarget && (
+                    <text x={labelX} y={labelY + 8} textAnchor="middle" fontSize="22" fontWeight="black" fill={assignedColor}>
+                      {a.val}°
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+
+          {interactive && (
+            <div className="absolute top-2 left-2 flex items-center gap-1 bg-white/80 backdrop-blur px-2 py-1 rounded shadow-sm text-xs font-bold text-slate-500 pointer-events-none">
+              <Icon name="MousePointerClick" className="w-3 h-3" />
+              <span>點擊任意角度</span>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // --- Explore Mode ---
+    const ExploreMode = () => {
+      const [theta, setTheta] = useState(60);
+      const [activeTheorem, setActiveTheorem] = useState('corr'); 
+      const [pairIndex, setPairIndex] = useState(0); 
+      const [toastMsg, setToastMsg] = useState('');
+
+      const handleTheoremClick = (key) => {
+        if (activeTheorem === key) {
+          setPairIndex((prev) => (prev + 1) % THEOREMS[key].pairs.length);
+        } else {
+          setActiveTheorem(key);
+          setPairIndex(0);
+        }
+      };
+
+      const handleAngleClick = (clickedId) => {
+        const currentThm = THEOREMS[activeTheorem];
+        let foundIndex = currentThm.pairs.findIndex(p => p.includes(clickedId));
+
+        if (foundIndex !== -1) {
+          setPairIndex(foundIndex);
+        } else {
+          for (const [key, thm] of Object.entries(THEOREMS)) {
+            const idx = thm.pairs.findIndex(p => p.includes(clickedId));
+            if (idx !== -1) {
+              setActiveTheorem(key);
+              setPairIndex(idx);
+              showToast(`此角沒有${currentThm.name}，已自動切換至 ${thm.name}`);
+              break;
+            }
+          }
+        }
+      };
+
+      const showToast = (msg) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(''), 2500);
+      };
+
+      const getHighlights = () => {
+        if (!activeTheorem) return [];
+        return THEOREMS[activeTheorem].pairs[pairIndex];
+      };
+
+      return (
+        <div className="flex flex-col h-full gap-2 p-2 relative">
+          <div className="text-center shrink-0 flex flex-col items-center min-h-[48px] justify-center mb-1">
+            {activeTheorem ? (
+              <>
+                <h2 className="text-2xl md:text-4xl font-black text-indigo-600 leading-tight tracking-wide">
+                  {THEOREMS[activeTheorem].engReason}
+                </h2>
+                <p className="text-lg md:text-2xl font-bold text-slate-600 mt-1">
+                  ({THEOREMS[activeTheorem].dseReason.split('\n')[0]})
+                </p>
+              </>
+            ) : (
+              <h2 className="text-2xl md:text-4xl font-black text-indigo-900 leading-tight">
+                平行線上的角
+              </h2>
+            )}
+          </div>
+
+          <div className="flex-1 min-h-0 w-full relative">
+            <GeometrySVG 
+              theta={theta} 
+              highlights={getHighlights()} 
+              interactive={true} 
+              onAngleClick={handleAngleClick} 
+            />
+            
+            {toastMsg && (
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-800 text-white px-4 py-2 rounded-full shadow-lg text-sm font-bold opacity-90 pointer-events-none z-10 text-center w-max max-w-[90%]">
+                {toastMsg}
+              </div>
+            )}
+          </div>
+
+          <div className="shrink-0 flex flex-col gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              {Object.entries(THEOREMS).map(([key, thm]) => (
+                <button
+                  key={key}
+                  onClick={() => handleTheoremClick(key)}
+                  className={`p-2 rounded-lg transition-all border-b-4 active:border-b-0 active:translate-y-1 flex flex-col items-center justify-center ${
+                    activeTheorem === key 
+                    ? 'bg-indigo-600 text-white border-indigo-900 shadow-sm' 
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="text-sm md:text-lg font-bold">{thm.name}</span>
+                  {activeTheorem === key && (
+                    <span className="text-[10px] md:text-xs font-medium opacity-80 mt-0.5">
+                      (組合 {pairIndex + 1}/{thm.pairs.length})
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3 bg-slate-100 p-2 md:p-3 rounded-lg border border-slate-200">
+              <label className="text-xs md:text-sm font-bold text-slate-600 whitespace-nowrap">
+                改變直線角度
+              </label>
+              <input 
+                type="range" min="30" max="150" step="1" value={theta}
+                onChange={(e) => setTheta(parseInt(e.target.value))}
+                className="flex-1 h-2 bg-slate-300 rounded-full appearance-none cursor-pointer accent-indigo-600"
+              />
+              <span className="text-indigo-700 font-bold text-sm w-10 text-right tabular-nums">{theta}°</span>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // --- Cinematic Countdown ---
+    const CountdownOverlay = ({ onComplete }) => {
+      const [count, setCount] = useState(3);
+
+      useEffect(() => {
+        if (count > 0) {
+          const timer = setTimeout(() => setCount(c => c - 1), 1000);
+          return () => clearTimeout(timer);
+        } else {
+          const timer = setTimeout(onComplete, 800); 
+          return () => clearTimeout(timer);
+        }
+      }, [count, onComplete]);
+
+      return (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-md rounded-[inherit]">
+          <div 
+            key={count} 
+            className="text-white font-black text-9xl drop-shadow-md"
+          >
+            {count > 0 ? count : 'GO!'}
+          </div>
+        </div>
+      );
+    };
+
+    // --- Explanation Panel ---
+    const ExplanationPanel = ({ q, onContinue }) => {
+      const getExplanationText = () => {
+        if (q.type === 'calc') {
+          return (
+            <div className="flex flex-col justify-center">
+              <h3 className="text-xl md:text-3xl font-black text-red-600 mb-1 md:mb-2">答錯了！</h3>
+              <p className="text-slate-700 font-bold mb-1 md:mb-2 text-base md:text-xl">
+                正確角度是 <span className="text-indigo-600 text-2xl md:text-4xl">{q.targetVal}°</span>
+              </p>
+              <p className="text-slate-500 text-xs md:text-base">（請觀察圖中紅藍顏色的關係）</p>
+            </div>
+          );
+        } else {
+          const correctThm = THEOREMS[q.targetVal];
+          return (
+             <div className="flex flex-col justify-center">
+              <h3 className="text-xl md:text-3xl font-black text-red-600 mb-1 md:mb-2">答錯了！</h3>
+              <p className="text-slate-700 font-bold text-sm md:text-lg mb-1 md:mb-2">正確的幾何關係是：</p>
+              <div className="bg-indigo-50 border-2 border-indigo-200 text-indigo-800 font-bold px-3 py-1.5 md:px-5 md:py-2 rounded-lg md:rounded-xl inline-block whitespace-pre-line text-xs md:text-xl">
+                {correctThm.dseReason}
+              </div>
+            </div>
+          );
+        }
+      };
+
+      return (
+        <div className="bg-red-50 border-4 border-red-200 p-3 md:p-6 rounded-2xl flex items-center justify-between gap-4 md:gap-6 shadow-sm h-full w-full">
+           <div className="flex-1">
+             {getExplanationText()}
+           </div>
+           <button 
+             onClick={onContinue}
+             className="flex-shrink-0 flex items-center justify-center gap-1 md:gap-2 bg-indigo-600 text-white px-5 py-3 md:px-8 md:py-5 rounded-xl md:rounded-2xl text-lg md:text-2xl font-black shadow-lg hover:bg-indigo-700 active:scale-95 transition-all"
+           >
+             <Icon name="Play" className="w-6 h-6 md:w-8 md:h-8 fill-current" />
+             繼續
+           </button>
+        </div>
+      );
+    };
+
+    // --- Game Mode ---
+    const GameMode = () => {
+      const [gameState, setGameState] = useState('menu'); 
+      const [status, setStatus] = useState('idle');
+      const [timeLeft, setTimeLeft] = useState(30);
+      const [score, setScore] = useState(0); 
+      const [q, setQ] = useState(null);
+      
+      const [feedback, setFeedback] = useState(null);
+      const [cooldown2, setCooldown2] = useState(false); 
+      const [p1Cooldown, setP1Cooldown] = useState(false); 
+      const [pendingMode, setPendingMode] = useState(null);
+
+      const MAX_PULL = 8; 
+
+      useEffect(() => {
+        let timer;
+        if (status === 'playing' && timeLeft > 0) {
+          timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
+        } else if (timeLeft === 0 && status === 'playing') {
+          setStatus('end');
+        }
+        return () => clearTimeout(timer);
+      }, [timeLeft, status]);
+
+      const initGame = (mode) => {
+        setTimeLeft(30);
+        setScore(0);
+        setQ(generateQuestion());
+        setFeedback(null);
+        setP1Cooldown(false);
+        setCooldown2(false);
+        
+        if (mode === 'single') {
+          setGameState('single');
+          setStatus('playing');
+        } else {
+          setGameState('countdown');
+          setStatus('countdown');
+          setPendingMode(mode);
+        }
+      };
+
+      const handleCountdownComplete = () => {
+        setGameState(pendingMode);
+        setStatus('playing');
+      };
+
+      const handleAnswer = (player, optValue) => {
+        if (status !== 'playing' || feedback) return;
+        if (gameState === 'vs') {
+          if (player === 1 && p1Cooldown) return;
+          if (player === 2 && cooldown2) return;
+        }
+        
+        const isCorrect = optValue === q.targetVal;
+        
+        if (gameState === 'single') {
+          if (isCorrect) {
+            setScore(s => s + 1);
+            setFeedback('correct');
+            setTimeout(() => {
+              setFeedback(null);
+              setQ(generateQuestion());
+            }, 500); 
+          } else {
+            setStatus('explanation');
+          }
+        } else if (gameState === 'vs') {
+          if (isCorrect) {
+            setScore(s => {
+              const newScore = player === 1 ? s - 1 : s + 1;
+              if (newScore <= -MAX_PULL || newScore >= MAX_PULL) setStatus('end');
+              return newScore;
+            });
+            setFeedback(player === 1 ? 'p1-correct' : 'p2-correct');
+            setTimeout(() => {
+              if (status === 'playing') {
+                setFeedback(null);
+                setQ(generateQuestion());
+              }
+            }, 500);
+          } else {
+            setScore(s => {
+              const newScore = player === 1 ? s + 1 : s - 1;
+              if (newScore <= -MAX_PULL || newScore >= MAX_PULL) setStatus('end');
+              return newScore;
+            });
+            
+            if (player === 1) {
+              setP1Cooldown(true);
+              setTimeout(() => setP1Cooldown(false), 1000);
+            } else {
+              setCooldown2(true);
+              setTimeout(() => setCooldown2(false), 1000);
+            }
+          }
+        }
+      };
+
+      const handleContinueSingle = () => {
+        setStatus('playing');
+        setQ(generateQuestion());
+      };
+
+      if (gameState === 'menu') {
+        return (
+          <div className="flex flex-col items-center justify-center h-full gap-8 p-4 md:p-8">
+            <div className="flex flex-col md:flex-row w-full max-w-[1200px] gap-6 md:gap-12">
+              <button 
+                onClick={() => initGame('single')}
+                className="flex-1 flex flex-col items-center justify-center gap-6 bg-white p-10 md:p-16 rounded-3xl shadow-xl border-4 border-indigo-100 hover:border-indigo-400 active:scale-95 transition-all"
+              >
+                <Icon name="User" className="w-20 h-20 md:w-32 md:h-32 text-indigo-500" />
+                <div className="text-center">
+                  <h3 className="text-3xl md:text-5xl font-black text-slate-800">單人挑戰</h3>
+                  <p className="text-lg md:text-2xl font-bold text-slate-500 mt-4">無需倒數，直接開始</p>
+                </div>
+              </button>
+              
+              <button 
+                onClick={() => initGame('vs')}
+                className="flex-1 flex flex-col items-center justify-center gap-6 bg-white p-10 md:p-16 rounded-3xl shadow-xl border-4 border-emerald-100 hover:border-emerald-400 active:scale-95 transition-all"
+              >
+                <Icon name="Users" className="w-20 h-20 md:w-32 md:h-32 text-emerald-500" />
+                <div className="text-center">
+                  <h3 className="text-3xl md:text-5xl font-black text-slate-800">雙人拔河</h3>
+                   <p className="text-lg md:text-2xl font-bold text-slate-500 mt-4">動態火柴人對決</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      if (status === 'end') {
+        return (
+          <div className="flex flex-col items-center justify-center h-full gap-6 md:gap-8 p-4 text-center">
+            
+            {gameState === 'vs' ? (
+              <div className="w-full max-w-2xl px-4 py-8 md:py-12 transform scale-110 md:scale-125 mb-4 mt-8 pointer-events-none">
+                <TugOfWarAnimation score={score} maxPull={MAX_PULL} />
+              </div>
+            ) : (
+              <Icon name="Trophy" className="w-24 h-24 md:w-32 md:h-32 text-amber-500 drop-shadow-lg" />
+            )}
+
+            <h2 className="text-4xl md:text-6xl font-black drop-shadow-sm z-10">
+              {gameState === 'single' ? (
+                 <span className="text-slate-800">總分: {score}</span>
+              ) : (
+                 score < 0 ? <span className="text-red-600">紅方獲勝！ 🎉</span> : 
+                 score > 0 ? <span className="text-blue-600">藍方獲勝！ 🎉</span> : 
+                 <span className="text-slate-600">平局！</span>
+              )}
+            </h2>
+            
+            <div className="flex gap-4 md:gap-6 mt-6 md:mt-10 z-10">
+              <button 
+                onClick={() => initGame(gameState)}
+                className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-4 md:px-8 md:py-4 rounded-full text-lg md:text-xl font-bold hover:bg-indigo-700 active:scale-95 transition-all shadow-lg"
+              >
+                <Icon name="Repeat" className="w-6 h-6 md:w-7 md:h-7" /> 再來一局
+              </button>
+              <button 
+                onClick={() => { setGameState('menu'); setStatus('idle'); }}
+                className="flex items-center justify-center gap-2 bg-white text-slate-700 border-2 border-slate-300 px-6 py-4 md:px-8 md:py-4 rounded-full text-lg md:text-xl font-bold hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+              >
+                <Icon name="RotateCcw" className="w-6 h-6 md:w-7 md:h-7" /> 選單
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      let highlights = [];
+      if (q?.type === 'identify') {
+        highlights = q.highlightedIds;
+      } else if (q?.type === 'calc' && status === 'explanation') {
+        highlights = [q.givenId, q.targetId]; 
+      }
+
+      return (
+        <div className="flex flex-col h-full max-h-full relative">
+          
+          {gameState === 'countdown' && status === 'countdown' && <CountdownOverlay onComplete={handleCountdownComplete} />}
+
+          <div className="flex items-center justify-between mb-2 shrink-0 px-1 gap-2">
+            <div className="flex items-center gap-1 shrink-0">
+              <Icon name="Timer" className={`w-5 h-5 md:w-6 md:h-6 ${timeLeft <= 10 ? 'text-red-500' : 'text-slate-500'} ${status === 'explanation' ? 'opacity-50' : ''}`} />
+              <span className={`text-xl md:text-2xl font-black tabular-nums ${timeLeft <= 10 ? 'text-red-600' : 'text-slate-700'} ${status === 'explanation' ? 'opacity-50' : ''}`}>
+                {timeLeft}s
+              </span>
+            </div>
+            
+            {gameState === 'vs' ? (
+              <div className="flex-1 max-w-lg mx-auto pointer-events-none">
+                <TugOfWarAnimation score={score} maxPull={MAX_PULL} />
+              </div>
+            ) : (
+              <>
+                 <div className="text-sm md:text-base font-bold text-slate-600 hidden md:block">
+                   {q?.type === 'calc' ? '計算「?」' : '分析這兩個角'}
+                 </div>
+                 <div className="text-xl md:text-2xl font-black text-indigo-600 tabular-nums shrink-0">分: {score}</div>
+              </>
+            )}
+          </div>
+
+          <div className="relative flex-1 min-h-0 w-full mb-2">
+        {q && (
+          <GeometrySVG 
+            theta={q.theta} 
+            givenAngles={q.type === 'calc' ? { [q.givenId]: q.givenVal } : {}} 
+            targetId={q.type === 'calc' && status !== 'explanation' ? q.targetId : null}
+            highlights={highlights}
+          />
+        )}
+        
+        {feedback && status !== 'explanation' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-20 rounded-2xl pointer-events-none">
+            {gameState === 'single' ? (
+               <Icon name="CheckCircle2" className="w-32 h-32 md:w-48 md:h-48 text-green-500 animate-in zoom-in" />
+            ) : (
+               <div className={`text-5xl md:text-7xl font-black p-8 md:p-12 rounded-3xl shadow-2xl bg-white ${feedback === 'p1-correct' ? 'text-red-500 border-4 border-red-200' : 'text-blue-500 border-4 border-blue-200'} animate-bounce`}>
+                 {feedback === 'p1-correct' ? '⬅ 紅方得分' : '藍方得分 ➡'}
+               </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 縮小按鈕區高度，將空間讓給上方圖形 */}
+      <div className="shrink-0 mt-2 min-h-[120px] md:min-h-[150px] flex flex-col justify-end">
+        {status === 'explanation' ? (
+          <ExplanationPanel q={q} onContinue={handleContinueSingle} />
+        ) : gameState === 'single' ? (
+          <div className="grid grid-cols-2 gap-2 md:gap-4 h-full">
+            {q?.options.map((opt, i) => (
+              <button
+                key={i}
+                onClick={() => handleAnswer(1, opt.value)}
+                className="bg-white border-4 border-slate-200 text-slate-700 font-bold text-lg md:text-2xl py-3 md:py-4 px-2 rounded-xl shadow-md hover:border-indigo-400 hover:text-indigo-700 active:scale-95 whitespace-pre-line leading-tight flex items-center justify-center text-center transition-all"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex gap-2 md:gap-4 h-full">
+            <div className={`flex-1 bg-red-50 p-2 md:p-3 rounded-xl border-4 border-red-200 flex flex-col ${p1Cooldown ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+              <div className="text-center text-red-800 font-black text-sm md:text-lg mb-1 md:mb-2">紅方 (答錯凍結)</div>
+              <div className="grid grid-cols-2 gap-2 md:gap-3 flex-1">
+                {q?.options.map((opt, i) => (
+                  <button
+                    key={`p1-${i}`}
+                    onClick={() => handleAnswer(1, opt.value)}
+                    className="bg-white border-2 md:border-4 border-red-100 text-red-700 font-bold text-sm md:text-lg py-2 px-1 rounded-lg active:bg-red-500 active:text-white whitespace-pre-line leading-tight flex items-center justify-center text-center h-full transition-colors shadow-sm"
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={`flex-1 bg-blue-50 p-2 md:p-3 rounded-xl border-4 border-blue-200 flex flex-col ${cooldown2 ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+              <div className="text-center text-blue-800 font-black text-sm md:text-lg mb-1 md:mb-2">藍方 (答錯凍結)</div>
+              <div className="grid grid-cols-2 gap-2 md:gap-3 flex-1">
+                {q?.options.map((opt, i) => (
+                  <button
+                    key={`p2-${i}`}
+                    onClick={() => handleAnswer(2, opt.value)}
+                    className="bg-white border-2 md:border-4 border-blue-100 text-blue-700 font-bold text-sm md:text-lg py-2 px-1 rounded-lg active:bg-blue-500 active:text-white whitespace-pre-line leading-tight flex items-center justify-center text-center h-full transition-colors shadow-sm"
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- Main App ---
+function App() {
+  const [activeTab, setActiveTab] = useState('explore'); 
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-800 font-sans p-0 flex items-center justify-center overflow-hidden">
+      <div className="w-full h-[100dvh] flex flex-col bg-slate-50 overflow-hidden">
+        
+        {/* 大幅縮小頂部選單的高度、字體與圖示，將空間讓給圖形 */}
+        <div className="flex items-center justify-between bg-slate-800 text-white p-2 md:p-3 shrink-0 shadow-md z-10">
+          <div className="flex gap-2 md:gap-4 w-full max-w-[1600px] mx-auto">
+            <button 
+              onClick={() => setActiveTab('explore')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 md:py-2.5 rounded-xl text-base md:text-xl font-bold transition-all ${activeTab === 'explore' ? 'bg-indigo-600 shadow-md scale-[1.02]' : 'bg-slate-700 hover:bg-slate-600'}`}
+            >
+              <Icon name="Compass" className="w-5 h-5 md:w-6 md:h-6" /> 探索
+            </button>
+            <button 
+              onClick={() => setActiveTab('game')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 md:py-2.5 rounded-xl text-base md:text-xl font-bold transition-all ${activeTab === 'game' ? 'bg-indigo-600 shadow-md scale-[1.02]' : 'bg-slate-700 hover:bg-slate-600'}`}
+            >
+              <Icon name="Swords" className="w-5 h-5 md:w-6 md:h-6" /> 挑戰
+            </button>
+          </div>
+        </div>
+
+        {/* 縮小主要內容區的上下左右留白，最大化圖形顯示範圍 */}
+        <div className="flex-1 overflow-hidden p-2 md:p-4 flex flex-col w-full max-w-[1600px] mx-auto">
+          {activeTab === 'explore' ? <ExploreMode /> : <GameMode />}
+        </div>
+        
+      </div>
+    </div>
+  );
+}
+
+    // Render the React application
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
